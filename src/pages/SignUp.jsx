@@ -3,19 +3,32 @@ import {
   AiFillEyeInvisible,
   AiFillEye
 } from 'react-icons/ai';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { 
+  getAuth, 
+  createUserWithEmailAndPassword, 
+  updateProfile 
+} from "firebase/auth";
+import { 
+  doc, 
+  serverTimestamp, 
+  setDoc 
+} from 'firebase/firestore';
+import { db } from 'firebase.config';
+import { toast } from 'react-toastify';
 
 // Components
 import OAuth from 'components/OAuth';
 
 export default function SignUp() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     password: ''
   });
   const { fullName, email, password } = formData;
-  
+
   const [showPassword, setShowPassword] = useState(false);
 
   // Handlers
@@ -25,6 +38,42 @@ export default function SignUp() {
       ...prevState,
       [name]: value
     }));
+  };
+
+  // Handle form submit
+  const handleSubmit = async e => {
+    e.preventDefault();
+    
+    try {
+      const auth = getAuth();
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Update profile
+      updateProfile(auth.currentUser, {
+        displayName: fullName
+      });
+      
+      // Copy formData
+      const formDataCopy = {...formData};
+      delete formDataCopy.password;
+      formDataCopy.timestamp = serverTimestamp();
+
+      // Writes to document
+      const user = userCredential.user; 
+      await setDoc(
+        doc(db, 'users', user.uid), 
+        formDataCopy
+      );
+
+      // Success message
+      // toast.success('Sign up was successful!');
+
+      // Redirect to home
+      // navigate('/');
+    } catch (error) {
+      // Error message
+      toast.error('Something went wrong with the registration!');
+    }
   };
 
   return (
@@ -39,7 +88,7 @@ export default function SignUp() {
           />
         </div>
         <div className='w-full md:w-[67%] lg:w-[50%] lg:flex-1 lg:ml-20'>
-          <form>
+          <form onSubmit={handleSubmit}>
             <input 
               type='text' 
               className='w-full mb-6 px-4 py-2 text-xl text-gray-700 bg-white border-gray-300 rounded transition ease-in-out' 
