@@ -27,12 +27,16 @@ export default function Profile() {
   };
 
   // Handle sign out clicked
-  const handleSignOutClicked = e => {
-    // Sign out the user
-    auth.signOut();
+  const handleSignOutClicked = async e => {
+    try {
+      // Sign out the user
+      await auth.signOut();
 
-    // Redirect
-    navigate('/');
+      // Redirect
+      navigate('/');
+    } catch (error) {
+      toast.error('Something went wrong!');
+    }
   };
 
   // Submit changeDetails

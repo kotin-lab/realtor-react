@@ -1,10 +1,13 @@
 import React from 'react';
+import useAuthStatus from 'hooks/useAuthStatus';
 
 // Components
 import NavItem from './NavItem';
 import HeaderLogo from './HeaderLogo';
 
 export default function Header() {
+  const [loggedIn] = useAuthStatus();
+
   return (
     <div className='bg-white border-b shadow-sm sticky top-0 z-50'>
       <header className='flex justify-between items-center px-3 max-w-6xl mx-auto'>
@@ -26,10 +29,11 @@ export default function Header() {
               />
             </li>
             <li>
-              <NavItem
-                to={'/sign-in'}
-                text={'Sign in'}
-              />
+              {
+                loggedIn
+                  ? <NavItem to={'/profile'} text={'Profile'} />
+                  : <NavItem to={'/sign-in'} text={'Sign in'} />
+              }
             </li>
           </ul>
         </nav>

@@ -7,13 +7,18 @@ export default function useAuthStatus() {
 
   useEffect(() => {
     const auth = getAuth();
-    onAuthStateChanged(auth, user => {
+    const unsubscribe = onAuthStateChanged(auth, user => {
       if (user) {
         setLoggedIn(true);
+      } else {
+        setLoggedIn(false);
       }
       
       setCheckingStatus(false);
     });
+
+    // Unsubscribe the Auth changed
+    return () => unsubscribe();
   }, []);
 
   return [loggedIn, checkingStatus];
