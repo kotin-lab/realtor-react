@@ -1,6 +1,9 @@
-import { getAuth } from 'firebase/auth';
+import { db } from 'firebase.config';
+import { getAuth, updateProfile } from 'firebase/auth';
+import { doc, updateDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { toast } from 'react-toastify';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -11,6 +14,7 @@ export default function Profile() {
     email: currentUser.email
   });
   const { fullName, email } = formData;
+  const [changeDetails, setChangeDetails] = useState(false);
 
   // Handlers
   const handleInputChanged = e => {
@@ -31,6 +35,27 @@ export default function Profile() {
     navigate('/');
   };
 
+  // Submit changeDetails
+  const submitChangeDetails = async () => {
+    try {
+      if (currentUser.displayName !== fullName) {
+        // Update displayName in firebase authentication
+        await updateProfile(auth.currentUser, {
+          displayName: fullName
+        });
+
+        // Update name in the firestore too
+        const docRef = doc(db, 'users', auth.currentUser.uid);
+        await updateDoc(docRef, { fullName });
+      
+        // Success message
+        toast.success('Profile details was updated successful!');
+      }
+    } catch (error) {
+      toast.error('Could not update profile details!');
+    }
+  };
+
   return (
     <>
       <section className='max-w-6xl max-auto flex flex-col items-center'>
@@ -39,11 +64,11 @@ export default function Profile() {
           <form>
             <input 
               type='text' 
-              className='w-full mb-6 px-4 py-2 text-xl text-gray-700 bg-white border-gray-300 rounded transition ease-in-out' 
+              className={` ${changeDetails && 'bg-red-200 focus:bg-red-200'} w-full mb-6 px-4 py-2 text-xl text-gray-700 bg-white border-gray-300 rounded transition ease-in-out`} 
               id='fullName'
               name='fullName'
               value={fullName}
-              readOnly={true}
+              readOnly={!changeDetails}
               onChange={handleInputChanged}
               placeholder='Full name'
             />
@@ -61,8 +86,12 @@ export default function Profile() {
                 Do you want to change your name?
                 <span 
                   className='cursor-pointer hover:underline text-red-600 hover:text-red-700 transition duration-200 ease-in-out ml-2'
+                  onClick={() => {
+                    changeDetails && submitChangeDetails()
+                    setChangeDetails(prevState => !prevState)
+                  }}
                 >
-                  Edit
+                  {changeDetails ? 'Apply change' : 'Edit'}
                 </span>
               </p>
               <span 
