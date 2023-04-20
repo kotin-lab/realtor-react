@@ -2,7 +2,9 @@ import { db } from 'firebase.config';
 import { getAuth, updateProfile } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
+import { FcHome } from 'react-icons/fc';
 import { useNavigate } from 'react-router';
+import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 export default function Profile() {
@@ -106,6 +108,13 @@ export default function Profile() {
               </span>
             </div>
           </form>
+          <Link
+            to={'/listings/create'}
+            className='w-full inline-flex rounded-lg justify-center items-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition ease-in-out duration-200 text-white uppercase px-7 py-2 text-sm font-medium shadow-md hover:shadow-lg '
+          >
+            <FcHome className='rounded-full text-3xl p-1 border-2 bg-red-200 mr-2' />
+            Sell or rent your Home
+          </Link>
         </div>
       </section>
     </>

@@ -1,7 +1,8 @@
 import {
   BrowserRouter as Router,
   Routes,
-  Route
+  Route,
+  Outlet
 } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -15,6 +16,7 @@ import ForgotPassword from 'pages/ForgotPassword';
 import Offers from 'pages/Offers';
 import Header from 'components/Header';
 import PrivateRoute from 'components/PrivateRoute';
+import CreateListing from 'pages/CreateListing';
 
 function App() {
   return (
@@ -30,6 +32,9 @@ function App() {
           <Route path='/sign-in' element={<SignIn />} />
           <Route path='/forgot-password' element={<ForgotPassword />} />
           <Route path='/offers' element={<Offers />} />
+          <Route path='/listings' element={<Outlet />}>
+            <Route path='create' element={<CreateListing />} />
+          </Route>
         </Routes>
       </Router>
       <ToastContainer
