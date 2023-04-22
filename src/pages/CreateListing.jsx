@@ -1,6 +1,21 @@
 import React, { useState } from 'react'
+import { getAuth } from 'firebase/auth';
+import { getDownloadURL, getStorage, ref, uploadBytesResumable } from 'firebase/storage';
+import { toast } from 'react-toastify';
+import { v4 as uuidv4 } from 'uuid';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { db } from 'firebase.config';
+import { useNavigate } from 'react-router';
+
+// Components
+import Spinner from 'components/Spinner';
 
 export default function CreateListing() {
+  const auth = getAuth();
+  const storage = getStorage();
+  const navigate = useNavigate();
+  const [geolocationEnabled, setGeolocationEnabled] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     type: 'rent',
     name: '',
@@ -10,9 +25,12 @@ export default function CreateListing() {
     furnished: false,
     address: '',
     description: '',
-    offer: true,
+    offer: false,
     regularPrice: 0,
-    discountedPrice: 0
+    discountedPrice: 0,
+    latitude: '',
+    longitude: '',
+    images: {}
   });
   const { 
     type, 
@@ -25,13 +43,196 @@ export default function CreateListing() {
     description,
     offer,
     regularPrice,
-    discountedPrice
+    discountedPrice,
+    latitude,
+    longitude,
+    images
   } = formData;
+
+  // Handlers
+  const handleOnChange = e => {
+    let bool = null;
+    const { type, name, value, files} = e.target;
+
+    // Convert to Boolean
+    if (type === 'button' && value === 'true') {
+      bool = true;
+    }
+
+    if (type === 'button' && value === 'false') {
+      bool = false;
+    }
+
+    // Files
+    if (files) {
+      setFormData(prevState => ({
+        ...prevState,
+        images: files
+      }));
+    } else {
+      setFormData(prevState => ({
+        ...prevState,
+        [name]: bool ?? value
+      }));
+    }
+  };
+
+  // Handel form submit
+  const handleFormSubmit = async e => {
+    e.preventDefault();
+
+    // Prevent repeated form submit
+    if (loading) return;
+
+    setLoading(true);
+
+    /** Check form fields */
+    // Check discounted price
+    if (+discountedPrice >= +regularPrice) {
+      setLoading(false);
+      toast.error('Discounted price need to be less than regular price');
+      return;
+    }
+
+    // Check max allowed images
+    if (images.length > 6) {
+      setLoading(false);
+      toast.error('Maximum 6 images are allowed');
+      return;
+    }
+
+    const geolocation = {};
+    if (geolocationEnabled) {
+      // Implement geolocation functionality here
+      // using Google Map Geocode api
+      
+      setGeolocationEnabled(false);
+      setLoading(false);
+      toast.info('Geolocation functionality is not implemented yet. Please enter manually in the form.');
+      return;
+    } else {
+      geolocation.lat = latitude;
+      geolocation.lng = longitude;
+    }
+
+    /** Upload images */
+    // Store image 
+    async function storeImage(image) {
+      return new Promise((resolve, reject) => {
+        const filename = `${auth.currentUser.uid}-${uuidv4()}-${image.name}`;
+        
+        // Create the file metadata
+        const metadata = {
+          contentType: image.type
+        };
+
+        // Upload file and metadata to the object `images/${filename}`
+        const storageRef = ref(storage, `images/${filename}`);
+        const uploadTask = uploadBytesResumable(storageRef, image, metadata);
+
+        // Listen for state changes, errors, and completion of the upload.
+        uploadTask.on(
+          'state_changed', 
+          snapshot => {
+            // Get task progress, including the number of bytes uploaded
+            // and the total number of bytes to be uploaded
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            console.log(`Upload is ${progress}% done`);
+
+            switch (snapshot.state) {
+              case 'paused':
+                console.log('Upload is paused');
+                break;
+              case 'running':
+                console.log('Upload is running');
+                break;
+              default:
+                break;
+            }
+          },
+          error => {
+            reject(error);
+          },
+          () => {
+            // Uplaod completd successfully,
+            // now we can get the download URL
+            getDownloadURL(uploadTask.snapshot.ref).then(downloadUrl => {
+              resolve(downloadUrl);
+            });
+          }
+        );
+      });
+    }
+
+    const imgUrls = await Promise.all(
+      [...images].map(img => storeImage(img))
+    ).catch(error => {
+      let message = '';
+      // A full list of error codes is available at
+      // https://firebase.google.com/docs/storage/web/handle-errors
+      switch (error.code) {
+        case 'storage/unauthorized':
+          message = "User doesn't have permission to access the object";
+          break;
+        case 'storage/canceled':
+          message = 'User canceled the upload';
+          break;
+        case 'storage/unknown':
+          message = 'Unknown error occurred, inspect error.serverResponse';
+          break;
+        default:
+          message = 'Images not uploaded!';
+          break;
+      }
+
+      setLoading(false);
+      toast.error(message);
+      return;
+    });
+    
+    // Copy form data
+    const formDataCopy = {
+      ...formData,
+      imgUrls,
+      geolocation,
+      timestamp: serverTimestamp(),
+    };
+    // Remove properties that no longer needed
+    delete formDataCopy.images;
+    delete formDataCopy.latitude;
+    delete formDataCopy.longitude;
+    offer || delete formDataCopy.discountedPrice;
+
+    
+    /** Add a document to Cloud Firestore */
+    try {
+      // Add a new document with a generated id.
+      const docRef = await addDoc(
+        collection(db, 'listings'),
+        formDataCopy
+      );
+
+      setLoading(false);
+      toast.success('Listing created');
+
+      // Redirect to listing that just created
+      navigate(`/category/${type}/${docRef.id}`);
+    } catch (error) {
+      console.error(error);
+      setLoading(false);
+      toast.error('Failed to create a listing');
+    }
+  };
+
+  // If Loading, show the <Spinner /> component instead.
+  if (loading) {
+    return <Spinner />;
+  }
 
   return (
     <main className='max-w-md px-2 mx-auto'>
       <h1 className='text-3xl text-center mt-6 font-bold'>Create a Listing</h1>
-      <form className='space-y-6 mt-6'>
+      <form className='space-y-6 mt-6' onSubmit={handleFormSubmit}>
         {/** Sell / Rent */}
         <div>
           <label className='block text-lg font-semibold mb-2'>Sell / Rent</label>
@@ -40,7 +241,7 @@ export default function CreateListing() {
               type='button' 
               name='type'
               value='sell'
-              onClick={() => {}}
+              onClick={handleOnChange}
               className={`${type === 'sell'? 'bg-slate-600 text-white': 'bg-white'} px-7 py-3 font-medium text-sm uppercase shadow-md rounded-md hover:shadow-lg focus:shadow-lg active:shadow-lg transition ease-in-out duration-200 w-full`}
             >
               Sell
@@ -49,7 +250,7 @@ export default function CreateListing() {
               type='button' 
               name='type'
               value='rent'
-              onClick={() => {}}
+              onClick={handleOnChange}
               className={`${type === 'rent'? 'bg-slate-600 text-white': 'bg-white'} ml-4 px-7 py-3 font-medium text-sm uppercase shadow-md rounded-md hover:shadow-lg focus:shadow-lg active:shadow-lg transition ease-in-out duration-200 w-full`}
             >
               Rent
@@ -69,7 +270,7 @@ export default function CreateListing() {
             name='name'
             value={name}
             id='name'
-            onChange={() => {}}
+            onChange={handleOnChange}
             placeholder='Name'
             minLength={10}
             maxLength={32}
@@ -94,7 +295,7 @@ export default function CreateListing() {
               min={0}
               max={50}
               required
-              onChange={() => {}}
+              onChange={handleOnChange}
               className='w-28 px-4 py-2 text-xl text-gray-700 bg-white border border-gray-300 focus:border-slate-600 rounded-md transition duration-200 ease-in-out'
             />
           </div>
@@ -113,7 +314,7 @@ export default function CreateListing() {
               min={0}
               max={50}
               required
-              onChange={() => {}}
+              onChange={handleOnChange}
               className='w-28 px-4 py-2 text-xl text-gray-700 bg-white border border-gray-300 focus:border-slate-600 rounded-md transition duration-200 ease-in-out'
             />
           </div>
@@ -125,8 +326,8 @@ export default function CreateListing() {
             <button 
               type='button' 
               name='parking'
-              value={parking}
-              onClick={() => {}}
+              value={true}
+              onClick={handleOnChange}
               className={`${parking? 'bg-slate-600 text-white': 'bg-white'} px-7 py-3 font-medium text-sm uppercase shadow-md rounded-md hover:shadow-lg focus:shadow-lg active:shadow-lg transition ease-in-out duration-200 w-full`}
             >
               Yes
@@ -134,8 +335,8 @@ export default function CreateListing() {
             <button 
               type='button' 
               name='parking'
-              value={parking}
-              onClick={() => {}}
+              value={false}
+              onClick={handleOnChange}
               className={`${!parking? 'bg-slate-600 text-white': 'bg-white'} ml-4 px-7 py-3 font-medium text-sm uppercase shadow-md rounded-md hover:shadow-lg focus:shadow-lg active:shadow-lg transition ease-in-out duration-200 w-full`}
             >
               No
@@ -149,8 +350,8 @@ export default function CreateListing() {
             <button 
               type='button' 
               name='furnished'
-              value={furnished}
-              onClick={() => {}}
+              value={true}
+              onClick={handleOnChange}
               className={`${furnished? 'bg-slate-600 text-white': 'bg-white'} px-7 py-3 font-medium text-sm uppercase shadow-md rounded-md hover:shadow-lg focus:shadow-lg active:shadow-lg transition ease-in-out duration-200 w-full`}
             >
               Yes
@@ -158,8 +359,8 @@ export default function CreateListing() {
             <button 
               type='button' 
               name='furnished'
-              value={furnished}
-              onClick={() => {}}
+              value={false}
+              onClick={handleOnChange}
               className={`${!furnished? 'bg-slate-600 text-white': 'bg-white'} ml-4 px-7 py-3 font-medium text-sm uppercase shadow-md rounded-md hover:shadow-lg focus:shadow-lg active:shadow-lg transition ease-in-out duration-200 w-full`}
             >
               No
@@ -178,12 +379,57 @@ export default function CreateListing() {
             name='address'
             value={address}
             id='address'
-            onChange={() => {}}
+            onChange={handleOnChange}
             placeholder='Address'
             required
             className='w-full px-4 py-2 text-xl text-gray-700 bg-white border border-gray-300 focus:border-slate-600 rounded-md transition duration-200 ease-in-out'
           />
         </div>
+        {/** Lat / Long */}
+        {geolocationEnabled || (
+          <div className='flex items-center space-x-6'>
+            <div>
+              <label 
+                htmlFor='latitude'
+                className='block text-lg font-semibold mb-2' 
+              >
+                Latitude
+              </label>
+              <input 
+                type='number'
+                name='latitude'
+                id='latitude'
+                value={latitude}
+                min={-90}
+                max={90}
+                required
+                step='any'
+                onChange={handleOnChange}
+                className='w-36 px-4 py-2 text-xl text-gray-700 bg-white border border-gray-300 focus:border-slate-600 rounded-md transition duration-200 ease-in-out'
+              />
+            </div>
+            <div>
+              <label 
+                htmlFor='longitude'
+                className='block text-lg font-semibold mb-2' 
+              >
+                Longitude
+              </label>
+              <input 
+                type='number'
+                name='longitude'
+                id='longitude'
+                value={longitude}
+                min={-180}
+                max={180}
+                required
+                step='any'
+                onChange={handleOnChange}
+                className='w-36 px-4 py-2 text-xl text-gray-700 bg-white border border-gray-300 focus:border-slate-600 rounded-md transition duration-200 ease-in-out'
+              />
+            </div>
+          </div>
+        )}
         {/** Description */}
         <div>
           <label
@@ -196,7 +442,7 @@ export default function CreateListing() {
             name='description'
             value={description}
             id='description'
-            onChange={() => {}}
+            onChange={handleOnChange}
             placeholder='Description'
             required
             className='w-full px-4 py-2 text-xl text-gray-700 bg-white border border-gray-300 focus:border-slate-600 rounded-md transition duration-200 ease-in-out'
@@ -209,8 +455,8 @@ export default function CreateListing() {
             <button 
               type='button' 
               name='offer'
-              value={offer}
-              onClick={() => {}}
+              value={true}
+              onClick={handleOnChange}
               className={`${offer? 'bg-slate-600 text-white': 'bg-white'} px-7 py-3 font-medium text-sm uppercase shadow-md rounded-md hover:shadow-lg focus:shadow-lg active:shadow-lg transition ease-in-out duration-200 w-full`}
             >
               Yes
@@ -218,8 +464,8 @@ export default function CreateListing() {
             <button 
               type='button' 
               name='offer'
-              value={offer}
-              onClick={() => {}}
+              value={false}
+              onClick={handleOnChange}
               className={`${!offer? 'bg-slate-600 text-white': 'bg-white'} ml-4 px-7 py-3 font-medium text-sm uppercase shadow-md rounded-md hover:shadow-lg focus:shadow-lg active:shadow-lg transition ease-in-out duration-200 w-full`}
             >
               No
@@ -242,7 +488,7 @@ export default function CreateListing() {
               value={regularPrice}
               min={50}
               required
-              onChange={() => {}}
+              onChange={handleOnChange}
               className='w-28 px-4 py-2 text-xl text-gray-700 bg-white border border-gray-300 focus:border-slate-600 rounded-md transition duration-200 ease-in-out'
             />    
             <span hidden={type !== 'rent'} className='text-md whitespace-nowrap'>
@@ -266,7 +512,8 @@ export default function CreateListing() {
                 id='discountedPrice'
                 value={discountedPrice}
                 required={offer}
-                onChange={() => {}}
+                min={1}
+                onChange={handleOnChange}
                 className='w-28 px-4 py-2 text-xl text-gray-700 bg-white border border-gray-300 focus:border-slate-600 rounded-md transition duration-200 ease-in-out'
               />
               <span hidden={type !== 'rent'} className='text-md whitespace-nowrap'>
@@ -285,7 +532,7 @@ export default function CreateListing() {
             type='file'
             name='images'
             id='images'
-            onChange={() => {}}
+            onChange={handleOnChange}
             accept='.jpg,.png,.jpeg'
             multiple
             required
@@ -295,6 +542,7 @@ export default function CreateListing() {
         {/** Submit button */}
         <button
           type='submit'
+          disabled={loading}
           className='w-full px-7 py-3 bg-blue-600 hover:bg-blue-700 focus:bg-blue-700 text-white font-medium text-sm uppercase rounded-md shadow-md hover:shadow-lg focus:shadow-lg transition ease-in-out duration-200'
         >
           Create Listing
