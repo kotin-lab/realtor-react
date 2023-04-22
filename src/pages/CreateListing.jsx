@@ -196,6 +196,7 @@ export default function CreateListing() {
       imgUrls,
       geolocation,
       timestamp: serverTimestamp(),
+      userRef: auth.currentUser.uid
     };
     // Remove properties that no longer needed
     delete formDataCopy.images;
