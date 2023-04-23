@@ -16,6 +16,7 @@ import Offers from 'pages/Offers';
 import Header from 'components/Header';
 import PrivateRoute from 'components/PrivateRoute';
 import CreateListing from 'pages/CreateListing';
+import EditListing from 'pages/EditListing';
 
 function App() {
   return (
@@ -33,6 +34,9 @@ function App() {
           <Route path='/offers' element={<Offers />} />
           <Route path='/listings/create' element={<PrivateRoute />}>
             <Route index element={<CreateListing />} />
+          </Route>
+          <Route path='/listings/:listingId' element={<PrivateRoute />}>
+            <Route path='edit' element={<EditListing />} />
           </Route>
         </Routes>
       </Router>
