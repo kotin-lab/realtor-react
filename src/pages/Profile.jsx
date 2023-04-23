@@ -1,6 +1,6 @@
 import { db } from 'firebase.config';
 import { getAuth, updateProfile } from 'firebase/auth';
-import { collection, doc, getDocs, orderBy, query, updateDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, orderBy, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { FcHome } from 'react-icons/fc';
 import { useNavigate } from 'react-router';
@@ -93,9 +93,31 @@ export default function Profile() {
     }
   };
 
+  // Handle onDelete
+  async function handleOnDelete(listingId) {
+    if (window.confirm('Are you sure you want to delete?')) {
+      try {
+        // Delte the listing from Cloud Firestore
+        await deleteDoc(doc(db, 'listings', listingId));
+        
+        // Filter the local listings
+        const filteredListings = listings.filter(listing => listing.id !== listingId);
+        setListings(filteredListings);
+
+        toast.success('Successfully deleted!');
+      } catch (error) {
+        toast.error('Something went wrong with deleting');
+      }
+    }
+  }
+  // Handle onEdit
+  function handleOnEdit(listingId) {
+    navigate(`/listings/${listingId}/edit`);
+  }
+
   return (
     <>
-      <section className='max-w-6xl max-auto flex flex-col items-center'>
+      <section className='max-w-6xl mx-auto flex flex-col items-center'>
         <h1 className='mt-6 text-center font-bold text-3xl'>My Profile</h1>
         <div className='w-full md:w-[50%] mt-6 px-3 '>
           <form>
@@ -161,6 +183,8 @@ export default function Profile() {
                   key={listing.id}
                   id={listing.id}
                   listing={listing.data}
+                  onDelete={handleOnDelete}
+                  onEdit={handleOnEdit}
                 />
               ))}
             </ul>
