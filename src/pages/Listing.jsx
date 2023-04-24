@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router';
 import { toast } from 'react-toastify';
 import { Autoplay, Navigation, Pagination, EffectFade } from 'swiper';
 import { Swiper, SwiperSlide } from 'swiper/react';
+import { FaShare } from 'react-icons/fa';
 
 // Components
 import Spinner from 'components/Spinner';
@@ -21,6 +22,7 @@ export default function Listing() {
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const [shareLinkCopied, setShareLinkCopied] = useState(false);
 
   // Hooks 
   useEffect(() => {
@@ -73,6 +75,25 @@ export default function Listing() {
           </SwiperSlide>
         ))}
       </Swiper>
+      {/* Share button */}
+      <span 
+        className='fixed inline-flex items-center justify-center top-[13%] right-[3%] z-10 bg-white cursor-pointer border-2 border-gray-400 rounded-full w-12 h-12'
+        onClick={() => {
+          const href = window.location.href;
+          navigator.clipboard.writeText(href);
+          setShareLinkCopied(true);
+          setTimeout(() => {
+            setShareLinkCopied(false);
+          }, 2000);
+        }}
+      >
+        <FaShare className='text-lg text-slate-500' />
+        {shareLinkCopied && (
+          <span className='fixed z-10 top-[23%] right-[5%] p-2 font-semibold border-2 border-gray-400 rounded-md bg-white'>
+            Link Copied
+          </span>
+        )}
+      </span>
     </main>
   );
 }
