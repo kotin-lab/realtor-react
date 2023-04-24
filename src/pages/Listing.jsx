@@ -7,9 +7,11 @@ import { Autoplay, Navigation, Pagination, EffectFade } from 'swiper';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { FaBath, FaBed, FaChair, FaParking, FaShare } from 'react-icons/fa';
 import { MdLocationOn } from 'react-icons/md';
+import { getAuth } from 'firebase/auth';
 
 // Components
 import Spinner from 'components/Spinner';
+import Contact from 'components/Contact';
 
 // Import Swiper styles
 import 'swiper/css';
@@ -19,11 +21,13 @@ import 'swiper/css/autoplay';
 import 'swiper/css/effect-fade';
 
 export default function Listing() {
+  const auth = getAuth();
   const { listingId } = useParams();
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const [shareLinkCopied, setShareLinkCopied] = useState(false);
+  const [contactLandlord, setContactLandlord] = useState(false);
 
   // Hooks 
   useEffect(() => {
@@ -171,6 +175,20 @@ export default function Listing() {
               </span>
             </li>
           </ul>
+          {/* Contact Landlord */}
+          {listing.userRef !== auth.currentUser?.uid 
+            && !contactLandlord
+            && (
+            <button 
+              className='px-7 py-3 bg-blue-600 hover:bg-blue-700 focus:bg-blue-700 focus:shadow-lg w-full text-center text-white font-medium text-sm rounded shadow-md hover:shadow-lg uppercase transition-colors duration-150 ease-in-out'
+              onClick={() => {
+                setContactLandlord(true);
+              }}
+            >
+              Contact Landlord
+            </button>
+          )}
+          {contactLandlord && <Contact userId={listing.userRef} listing={listing} />}
         </div>
         <div className='bg-blue-300 w-full h-[200px] lg:h-[400px] z-10 overflow-x-hidden'></div>
       </section>
