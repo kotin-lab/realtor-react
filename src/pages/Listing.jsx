@@ -12,6 +12,7 @@ import { getAuth } from 'firebase/auth';
 // Components
 import Spinner from 'components/Spinner';
 import Contact from 'components/Contact';
+import ListingMap from 'components/ListingMap';
 
 // Import Swiper styles
 import 'swiper/css';
@@ -100,7 +101,7 @@ export default function Listing() {
         )}
       </span>
       {/* Listing content */}
-      <section className='flex flex-col md:flex-row max-w-6xl m-4 p-4 rounded-lg lg:space-x-5 shadow-lg bg-white lg:last:mx-auto'>
+      <section className='flex flex-col md:flex-row max-w-6xl m-4 p-4 rounded-lg space-y-10 md:space-y-0 md:space-x-5 shadow-lg bg-white lg:last:mx-auto'>
         <div className='w-full'>
           <h4 className='text-2xl font-bold mb-3 text-blue-900 '>
             {listing.name} - $ 
@@ -190,7 +191,9 @@ export default function Listing() {
           )}
           {contactLandlord && <Contact userId={listing.userRef} listing={listing} />}
         </div>
-        <div className='bg-blue-300 w-full h-[200px] lg:h-[400px] z-10 overflow-x-hidden'></div>
+        <div className='w-full'>
+          <ListingMap listing={listing} />
+        </div>
       </section>
     </main>
   );
