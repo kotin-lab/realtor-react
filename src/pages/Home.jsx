@@ -146,7 +146,7 @@ export default function Home() {
           <section className=''>
             <h2 className='px-3 text-2xl font-semibold mt-6'>Places for sale</h2>
             <Link 
-              to={'/category/sale'}
+              to={'/category/sell'}
               className='block px-3 text-sm text-blue-600 hover:text-blue-800 transition-colors duration-150 ease-in-out'  
             >
               Show more places for sale
